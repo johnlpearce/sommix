@@ -1,2 +1,2 @@
 # SOMmix
-A collection of functions to support SOM-based analyses of complex mixtures
+Presents a collection of functions in the R Project for Statistical Computing that support application of the Self-Organizing Map (SOM) algorithm for analyses of complex, highdimensional data. The development of SOMmix is motivated by environmental epidemiology settings where exposure assessment and examination of health effects involves multiple risk factors. The source file includes functions for independent variable assessment, exploration of data structure, and development and evaluation of a self-organizied map. An illustrative example using data from recent NIEHS workshop on mixtures is also provided.     
