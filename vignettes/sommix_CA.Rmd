@@ -1,0 +1,163 @@
+---
+title: "sommix_CA"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{sommix_CA}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r load package}
+library(sommix)
+```
+# Introduction
+## Overview
+The **R** package **sommix** has been developed for application of the *self-organizing map (SOM)* algorithm for analyses of complex, highdimensional data. The development of **sommix** is motivated by environmental health and epidemiology settings where exposure assessment and health effects studies often encompass multiple risk factors involving complex environmental mixtures.  
+
+This document *sommix_CA* illustrates how to use the R package **sommix** to apply SOM for *cluster analysis (CA)*. In brief, CA is a form of unsupervised learning (UL), which is a type of machine/statistical learning used to find structure in unlabeled data when there is no target to guide the analysis. (This is often used in practice when an analyst is asked to find patterning in data of which little is known.) CA achieves this by seeking to identify  subgroups in the data where attributes within groupings are similar and attributes between groupings are different. The end result of CA is a partition of the data into a smaller number of homogeneous groupings (a.k.a., clusters) with profiles that describe each groups characteristics. Here we illustrate the approach using a synthetic data set designed to reflect patterning typically seen in environmental exposure data.   
+
+Please send any comments, suggestions, or bug reports to pearcejo@musc.edu.
+
+## Self-Organizing Maps
+SOM is an artificial neural network (ANN) that applies competitive learning with an integrated neighborhood function in order to discover and ‘map’ representative features within multivariate data (Kohonen 2013). The ‘map’ is a low-dimensional representation that is used to illustrate discovered profiles in a spatially organized way. This unique ‘self-organizing’ feature ensures that the resulting mapping provides an arrangement of categories where neighboring profiles are similar. This allows for a larger number of classes to be more easily understood, offering users the ability to represent exposures as a high-resolution continuum of categorizations, a key distinction from the discrete clusters/factors often produced through more traditional methods. 
+
+# Example Data
+
+For this example we use a simulated data designed to exhibit complex clustering structure: *dataset3*. The data are intended to reflect an environmental exposure assessment consisting of twenty four environmental pollutants that was conducted for a cohort of 250 participants. The data were generated using the **MixSim** R package and derived using a finite mixture model with Gaussian components. Simulated data were transformed using exp(x) in order to exhibit distributions common to the field. These data are intended to illustrate unsupervised learning and thus no outcome is included. Finally, data were generated to reflect twelve groupings that reflect  modestly overlapping sources or modes of exposure. 
+
+Number of records: 250
+Number of variables: 24
+Number of groupings: 12
+Data per subject: X1, X2, X3, X4, X5, X6, X7,...,X24
+X1 - X24= exposure data, 24 continuous variables
+
+## Load Example Data
+```{r dataset, echo=TRUE}
+data(dataset3)
+summary(dataset3)
+```
+
+## Selecting Data
+The first step in our analyses is to identify data for analysis. This application focuses on unsupervised learning and thus we only include the exposure matrix (X).
+
+```{r datatrn,  echo=FALSE}
+data.x<-dataset3 
+summary(data.x)
+```
+
+#Exploratory Data Analysis
+
+## Independent Variable Assessment 
+Identifying candidate variables is an important step for any mixtures analysis as is important to understand the behaviour and properties of each candidate. The *vareval* function is designed to enhance understanding of the distribution of each variable in your data, the relative variability, and the proportion of missing and zero values. Boxplots and frequency plots are provided.
+
+```{r vareval, echo=TRUE, fig.height=10, fig.width=7.5}
+vareval(data.x)
+```
+
+Panel a presents standardized boxplots in effort to reveal the distributions of our variables. Here we see that our data are positively skewed and thus a log transformation is recommended. Panels b/c do not identify any concerns. 
+## Correlation Structure
+Data correlations play an important role in mixtures analyses as environmental exposure data from similar sources are often well correlated. The *coreval* function is designed to enhance understanding of correlation among variables. A correlation matrix is returned and values are plotted on a correlogram.   
+
+```{r coreval, echo=TRUE, fig.height=10, fig.width=7.5}
+coreval(data.x)
+```
+
+Our correlogram identifies that moderate positive and negative correlation exists within our data.    
+
+## Principal Component Analysis (PCA) 
+Understanding the primary modes of variance (a.k.a., principal components) in a data set can be helpful determing the overall complexity of the data and identify important patterns covariation. Here we obtain such information using Principal Component Analysis (PCA). The *pcaeval* applies PCA and produces diagnostic plots that seek to identify important variance-covariance structure among variables. 
+
+```{r pcaeval, echo=TRUE, fig.height=10, fig.width=7.5}
+pcaeval(scale(data.x))
+```
+
+Panel a presents a biplot that displays both the principal component scores and the principal component loadings over the first two principal components of the data. Variable names are centered on their loading values with vector lengths showing how strongly each variable influences a principal component. When vectors are close to one another in direction the variables are positively correlated, if they diverge they are negatively correlated. For example, we can clearly see that X1 has a strong relationship with PC1 and that X24 has a strong relationship with PC2. On the other hand, X13 is related to both PCs as loading values are somewhat similar.  Panels b and c provide scree plots that examine Kaiser's rule (Kaiser-Guttman criterion) and the variance explained criteria in order to help identify important components in the data. According to Kaiser's rule only those principal components whose variances exceed one should be retained, which here suggest 8 components are important. Panel see presents measures often used in the variance explained criteria. Here we see the proportion of variance captured by individual components and the cumulative sums. The threshold is somewhat arbitrary; however, values between 70-90% are often desired. Here we see that proportion of varaince explained by individual components ranges from 0.01 to 1.13 and that 10 components are needed to capture ~75% of the variance in the data. Generally speaking, if a large number of components are needed (i.e., greater than 3) then PCA might not be the best way to reduce the data. That seems to be the case with these data.      
+
+# Methodology and Application
+
+## Feature scaling and Transformation 
+Data sets often contain multiple features spanning varying magnitudes, ranges, and units. This can be problematic for many multivariate techniques and thus feature scaling in often necessary. Here, we employ data standardization as our method. In brief, standardization performs scaling where the values are centered around the mean with a unit standard deviation. This means that the mean of each variable becomes zero and the resultant distribution has a unit standard deviation. In addition, we apply a log transformation prior to standardization based on results above.        
+
+```{r datascale, echo=TRUE}
+data.x.ln<-log(data.x)
+data.x.sc<-scale(data.x.ln, center=TRUE, scale=TRUE)
+summary(data.x.sc)
+```
+
+
+### Analysis of Grouping Stucture 
+Studies of environmental exposure often seek to group participants based on similar exposure patterns (e.g., high vs. low). The *grpeval* function is designed assist with this task as it employs traditional cluster analysis via kmeans in order to assess grouping/clustering structure in the data. Many unsupervised learning algorithms (e.g., SOM, kmeans) require the number of groupings for the algorithm to seek out as a user input. This tool assists users with this decision using two traditional strategies often applied in cluster analysis. Understanding patterns in multivariate data can be assissted by low-dimensional visualization that seek to represent similarity of individual observations in a dataset. Here, we employ multi-dimensional scaling (MDS) to construct a 2-D mapping that projects the pairwise distances among a set of observations into a configuration of points mapped onto abstract coordinate space. Here, we employ MDS as an ordination technique in order visualize information within the data's distance matrix. Similar objects are closer in space and thus multiple isolated regions of high-density will be presented if clustering is obvious. Second, multiple applications of k-means are used to internally assess how grouping structure changes as a function of the number of clusters. Results are presented as a scree plot based on the total within cluster sum-of-squares (WCSS) for each data partition. An ideal plot will present clear 'elbowing', where the measure decreases more slowly as the number of groupings increases.
+
+
+```{r grpeval, echo=TRUE, fig.height=10, fig.width=7.5}
+grpeval(data.x.sc, kmx=50) 
+```
+
+Panel a illustrates multi-dimensional scaling (MDS) results. Here we see areas of high density in two-dimensions that indicate grouping structure is present. Panel b presents a scree plot using withi-cluster sum-of-squares resuts for each k. Here we see the 'elbowing' is quite evident around k=12, which indicates that this partition exhibits the strongest grouping structure in the data. A similar pattern is observed for panel c where the within/between cluster sum-of-squares ratio indicates that better groupings seem to occur as k > 8. Values below 1 are desired as they reflect clusterings where the within-cluster varibility is lower than the between-cluster varibility. Panel d presents the Calinski-Harabasz (CH) index. CH is a sum-of-squares based clustering statistic where the index incorporates the WB ratio but penalizes by cluster number. Higher values reflect better 'clustering'. Here we see 12 is considered optimal. Panel e) presents the the average silhoutte width (SW). The silhouette ranges from -1 to +1, where a high value indicates that the objects are well matched to its own cluster and poorly matched to neighboring clusters. If the value is a high value (near +1), then the clustering configuration is appropriate. If the average is a low or negative value, then the clustering configuration may have too many or too few clusters. Here we see a maximum value occurs at k=12. Using the majority rule (a common approach with clustering statistics) we determine that k=12 is the ideal clustering of these data. 
+
+
+#Applying Self-Organizing Map (SOM)
+## Selecting Map Size
+The *mapsize* function is designed to enhance understanding of how the number of nodes on the map can be used to capture different characteristics of our data. In this example, we seek to build a SOM that captures the optimal clustering of the data and thus we can build our map based on soley on results of *grpeval*; however, certain applications of SOM may desire to understand other aspects of our SOM model such as explained variance, bias, model fit, group cohesion, and sample size. We explore these aspects using a minimum of 2 nodes up to a maximum of 50 nodes.  
+
+```{r mapsize, echo=TRUE,fig.height=10, fig.width=7.5}
+mapsize(data.x.sc, kmx=50)
+```
+
+Panel a reveals that a SOM with 12 nodes has an adjusted R2 ~ 0.7 indicating that a map of this size well captures variability in the data. Panels (b-c) reveal that 'elbowing' in both measures of model fit occurs around k=12. Panel d presents a form of AIC often used in cluster analysis (Manning 2009) that shows that model fit ceases to improve meaninfully after k=12. Panel e illustrates how within-class spread decreases as k increases. Panel f reveals how within class sample size decreases as a function of k. Collectively, these measures suggest that 12 nodes (i.e., groups) provide a robust mapping of these data.  
+
+##Fitting a SOM
+Here we fit a 4x3 SOM to our synthetic data using the *sommix* function, which is a wrapper for *som* provided by the **kohonen** R package. Modifications include optimization of a initial seed values and determination of the number of learning iterations based on map size. For more detail on **kohonen** see:  https://CRAN.R-project.org/package=kohonen
+
+```{r sommix, echo=TRUE}
+sommod<-sommix(data.x.sc, somx=4, somy=3, seedopt="Y", nstarts=5, maptopo="hexagonal") 
+```
+
+###Summarizing SOM Output
+Summarizing the output can be useful for subsequent analyses. Here we present *sommix_summ* as a tool that provides pertinant info in a convenient format
+
+```{r somsumm, echo=TRUE}
+summ<-sommix_summ(som_obj=sommod)
+names(summ)
+#Frequency table
+summ$som_freq
+
+#Class assignments with label IDs/XYs, map coordinates, and assignment error
+head(summ$som_class)
+```
+
+##Plotting Results
+We present a 4X3 SOM that illustrates 12 Exposure Profiles (EPs) that capture the types of exposure scenarios discovered in our synthetic data. Each EP is characterized by a bar plot that illustrates variable magnitudes via the median (± interquartile range) of observations assigned under each profile. The y-axis reflects data standardization where zero reflects the overall mean and units reflect 1 standard deviation. (This is a standard approach used to provide comparative measures across differing chemical classes and reporting units.) Labels are presented above each profile in brackets [ ] and the relative frequencies (%) of classification assignments are in the lower right. 
+
+```{r somplots, echo=TRUE, fig.height=8, fig.width=7.5}
+sommix_bar(som_obj=sommod, varnames=NULL, colormod=NULL,
+                     nodelab=TRUE, labtype="IDs", labsize=1,
+                     addFreq=TRUE, freqtype="frq", freqsize=0.75,
+                     legsymsize=2, leglabsize=1, legtxtlas=2,
+                     barstat="MED")
+```
+
+Presenting SOM results using barcharts provides a compact visualation of the patterning within our complex clustering data. Here we see that the most common EP was EP [12], which exhibits relatively high values for X1, X12, and X17 and relatively low values for X4,X16, and X20:24. Such information can provide important context in the study of environmental mixtures.     
+
+##Assessing Additional Map Characteristics
+Here we provide a range of plots designed to improve understanding of some additional aspects they we find useful for study of complex environmental data. First, the profiles discovered by a SOM model can often be numerous and it can often be difficult to assess how characteristics vary across variables on the map.  To assist, panel (a) presents a parallel coordinates plot of SOM profile results in order visualize differences in the individual components. Each vertical bar represents a variable axis where minimum values are on the bottom and maximum values are on top. A line is then used to connect component values for each profile. Another common challenge is determining how well SOM results agree with more traditional approaches. Panel (b) presents a multidimensional scaling plot that allows visualization of how well the SOM profile results span the original data space and how they compare to profiles generated from k-means and Ward's heirarchical clustering. Another aspect that can be important is the level of 'distortion' present in SOM grid as the strength of similarity among neighbors often varies on the map. Panel (c) assists with this aspect of the SOM by presenting a Sammon's mapping of profiles that effectively visualizes profile similarity using a distance preserving map projection. This provides a clearer picture of similarity/dissimilarity among SOM profiles. Panels (d) and (e) present summaries of between-class and within-class distances. These mappings assist with understanding which profiles are most distinct (often labeled as a U-matrix in SOM analysis) that can be useful for clustering and for understanding which profiles contain the most error. Both of these panels also include a boundary line that oulines how profiles could be nested under a smaller number of groupings. This also reveals which profiles are most similar.    
+
+```{r somfitplots, echo=TRUE, fig.height=10, fig.width=7.5}
+sommix_eval(sommod, labtype = "IDs", legcex=0.75)
+```
+
+##Assessing Component-wise Fit and Mapping 
+In environmental mixtures problems, the structure of interest is often contained in a subset of available variables. The *compeval* function provides one approach for determining potential subsets by examining how well variables are represented by the SOM model. This is achieved by looking at relationships with the discovered profiles and with the structure of the component across the mapping. SUmmary statistics of model fit are provided as well as measures of spatial autocorrelation across the mapping.   
+
+```{r compeval, echo=TRUE, fig.height=10, fig.width=7.5}
+compeval(sommod)
+```
+
+
